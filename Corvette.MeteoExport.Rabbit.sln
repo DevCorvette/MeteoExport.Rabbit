@@ -1,0 +1,21 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{EB77C0E8-3047-47E5-845F-96191E3EF6FD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Corvette.MeteoExport.Core", "src\Corvette.MeteoExport.Core\Corvette.MeteoExport.Core.csproj", "{B8E7BE21-B77F-45FB-84B5-74B575DDC90A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B8E7BE21-B77F-45FB-84B5-74B575DDC90A} = {EB77C0E8-3047-47E5-845F-96191E3EF6FD}
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B8E7BE21-B77F-45FB-84B5-74B575DDC90A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B8E7BE21-B77F-45FB-84B5-74B575DDC90A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B8E7BE21-B77F-45FB-84B5-74B575DDC90A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B8E7BE21-B77F-45FB-84B5-74B575DDC90A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

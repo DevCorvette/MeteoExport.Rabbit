@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <!-- Xml документация для OpenApi -->
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+      <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+      <PackageReference Include="NLog" Version="6.1.4" />
+      <PackageReference Include="NLog.Extensions.Logging" Version="6.1.4" />
+      <PackageReference Include="Scalar.AspNetCore" Version="2.16.18" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <InternalsVisibleTo Include="Corvette.MeteoExport.Api.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Corvette.MeteoExport.Core\Corvette.MeteoExport.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+      <None Update="appsettings.local.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" Condition="Exists('appsettings.local.json')" />
+      <None Include="..\..\NLog.config">
+        <Link>NLog.config</Link>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+</Project>

@@ -1,1 +1,3 @@
 # MeteoExport.Rabbit
+
+Проект в разработке...

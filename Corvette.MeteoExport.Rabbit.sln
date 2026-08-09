@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Corvette.MeteoExport.Core",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Corvette.MeteoExport.Migrator", "src\Corvette.MeteoExport.Migrator\Corvette.MeteoExport.Migrator.csproj", "{4973C213-435A-4D0B-B5CA-603B6CBF8355}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Corvette.MeteoExport.Api", "src\Corvette.MeteoExport.Api\Corvette.MeteoExport.Api.csproj", "{BEB3D63C-B842-4464-BD99-77C2A592497E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,6 +42,18 @@ Global
 		{4973C213-435A-4D0B-B5CA-603B6CBF8355}.Release|x64.Build.0 = Release|Any CPU
 		{4973C213-435A-4D0B-B5CA-603B6CBF8355}.Release|x86.ActiveCfg = Release|Any CPU
 		{4973C213-435A-4D0B-B5CA-603B6CBF8355}.Release|x86.Build.0 = Release|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Debug|x64.Build.0 = Debug|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Debug|x86.Build.0 = Debug|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Release|x64.ActiveCfg = Release|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Release|x64.Build.0 = Release|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Release|x86.ActiveCfg = Release|Any CPU
+		{BEB3D63C-B842-4464-BD99-77C2A592497E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -47,5 +61,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{B8E7BE21-B77F-45FB-84B5-74B575DDC90A} = {EB77C0E8-3047-47E5-845F-96191E3EF6FD}
 		{4973C213-435A-4D0B-B5CA-603B6CBF8355} = {EB77C0E8-3047-47E5-845F-96191E3EF6FD}
+		{BEB3D63C-B842-4464-BD99-77C2A592497E} = {EB77C0E8-3047-47E5-845F-96191E3EF6FD}
 	EndGlobalSection
 EndGlobal

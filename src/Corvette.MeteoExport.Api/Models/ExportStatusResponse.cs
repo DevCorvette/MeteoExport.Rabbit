@@ -10,19 +10,6 @@ namespace Corvette.MeteoExport.Api.Models;
 /// </summary>
 public class ExportStatusResponse
 {
-    public ExportStatusResponse(ExportJobEntity job)
-    {
-        ArgumentNullException.ThrowIfNull(job);
-
-        JobId = job.Id;
-        Status = job.Status;
-        CreatedAt = job.CreatedAt;
-        StartedAt = job.StartedAt;
-        FinishedAt = job.FinishedAt;
-        Progress = new ExportProgress(job.ChunksDone, job.ChunksTotal);
-        Error = job.Error;
-    }
-
     /// <summary>
     /// Идентификатор задания.
     /// </summary>
@@ -57,6 +44,19 @@ public class ExportStatusResponse
     /// Текст ошибки, если задание не удалось.
     /// </summary>
     public string? Error { get; }
+
+    public ExportStatusResponse(ExportJobEntity job)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+
+        JobId = job.Id;
+        Status = job.Status;
+        CreatedAt = job.CreatedAt;
+        StartedAt = job.StartedAt;
+        FinishedAt = job.FinishedAt;
+        Progress = new ExportProgress(job.ChunksDone, job.ChunksTotal);
+        Error = job.Error;
+    }
 
     /// <summary>
     /// Читает состояние задания из базы; null — задания с таким идентификатором нет.

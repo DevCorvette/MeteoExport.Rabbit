@@ -14,7 +14,6 @@
       <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
       <PackageReference Include="NLog" Version="6.1.4" />
       <PackageReference Include="NLog.Extensions.Logging" Version="6.1.4" />
-      <PackageReference Include="RabbitMQ.Client" Version="7.2.2" />
       <PackageReference Include="Scalar.AspNetCore" Version="2.16.18" />
     </ItemGroup>
 
@@ -24,6 +23,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Corvette.MeteoExport.Core\Corvette.MeteoExport.Core.csproj" />
+      <ProjectReference Include="..\Corvette.MeteoExport.Messaging\Corvette.MeteoExport.Messaging.csproj" />
     </ItemGroup>
 
     <ItemGroup>

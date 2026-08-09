@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
 using Corvette.MeteoExport.Api.Middleware;
 using Corvette.MeteoExport.Api.OpenApi;
-using Corvette.MeteoExport.Api.Services;
 using Corvette.MeteoExport.Api.Settings;
 using Corvette.MeteoExport.Core;
+using Corvette.MeteoExport.Messaging.Services;
 using NLog;
 using NLog.Extensions.Logging;
 using Scalar.AspNetCore;
@@ -84,6 +84,8 @@ internal static class Program
         builder.Services.AddSingleton(settings.Rabbit);
 
         builder.Services.AddDbContextFactory<MeteoExportDbContext>(options => MeteoExportDbContextFactory.Configure(options, settings.ConnectionString));
+        
+        builder.Services.AddSingleton<RabbitConnection>();
         builder.Services.AddSingleton<ExportPublisher>();
 
         builder.Services

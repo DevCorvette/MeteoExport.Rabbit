@@ -3,8 +3,9 @@ using System.Net.Mail;
 using Corvette.MeteoExport.Api.Services;
 using Corvette.MeteoExport.Core;
 using Corvette.MeteoExport.Core.Entities;
-using Corvette.MeteoExport.Core.Messages;
 using Corvette.MeteoExport.Core.Models;
+using Corvette.MeteoExport.Messaging.Messages;
+using Corvette.MeteoExport.Messaging.Services;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 

@@ -1,4 +1,4 @@
-namespace Corvette.MeteoExport.Core.Messages;
+namespace Corvette.MeteoExport.Messaging.Messages;
 
 /// <summary>
 /// Команда «выполнить выгрузку».

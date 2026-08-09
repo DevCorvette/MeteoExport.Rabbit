@@ -1,36 +1,32 @@
-using System.Net.Mime;
 using System.Text.Json;
-using Corvette.MeteoExport.Api.Settings;
-using Corvette.MeteoExport.Core.Messages;
+using Corvette.MeteoExport.Messaging.Messages;
+using Corvette.MeteoExport.Messaging.Settings;
+using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
-namespace Corvette.MeteoExport.Api.Services;
+namespace Corvette.MeteoExport.Messaging.Services;
 
 /// <summary>
-/// Объявляет топологию брокера и публикует в неё команды на выполнение выгрузки.
+/// Публикует команды на выполнение выгрузки.
 /// </summary>
 public class ExportPublisher : IAsyncDisposable
 {
-    /// <summary>
-    /// Сколько раз брокер отдаст сообщение потребителю, прежде чем признать его отравленным.
-    /// </summary>
-    private const int DeliveryLimit = 5;
+    private const string JsonContentType = "application/json";
 
-    private const string ClientName = "meteoexport-api";
-
+    private readonly RabbitConnection _connection;
     private readonly RabbitSettings _settings;
     private readonly ILogger<ExportPublisher> _logger;
 
     /// <summary>
-    /// Пускает к открытию соединения по одному
+    /// Пускает к открытию канала по одному
     /// </summary>
-    private readonly SemaphoreSlim _connectionLock = new(1, 1);
+    private readonly SemaphoreSlim _channelLock = new(1, 1);
 
-    private IConnection? _connection;
     private IChannel? _channel;
 
-    public ExportPublisher(RabbitSettings settings, ILogger<ExportPublisher> logger)
+    public ExportPublisher(RabbitConnection connection, RabbitSettings settings, ILogger<ExportPublisher> logger)
     {
+        _connection = connection ?? throw new ArgumentNullException(nameof(connection));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -58,7 +54,7 @@ public class ExportPublisher : IAsyncDisposable
                 {
                     // Сообщение переживает перезапуск брокера.
                     Persistent = true,
-                    ContentType = MediaTypeNames.Application.Json,
+                    ContentType = JsonContentType,
                     MessageId = message.JobId.ToString(),
                 };
 
@@ -95,19 +91,13 @@ public class ExportPublisher : IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await CloseAsync();
-        _connectionLock.Dispose();
-    }
-
     private async Task<IChannel> GetChannelAsync(CancellationToken cancellationToken)
     {
         var current = _channel;
         if (current != null && current.IsOpen)
             return current;
 
-        await _connectionLock.WaitAsync(cancellationToken);
+        await _channelLock.WaitAsync(cancellationToken);
 
         try
         {
@@ -117,71 +107,23 @@ public class ExportPublisher : IAsyncDisposable
 
             await CloseAsync();
 
-            // соединение
-            var factory = new ConnectionFactory
-            {
-                HostName = _settings.HostName,
-                Port = _settings.Port,
-                UserName = _settings.UserName,
-                Password = _settings.Password,
-                VirtualHost = _settings.VirtualHost,
-                // Видно в списке соединений брокера.
-                ClientProvidedName = ClientName,
-            };
-
-            _connection = await factory.CreateConnectionAsync(cancellationToken);
-
-            // канал
             // Подтверждения включаются при создании канала и после уже не меняются.
             var options = new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true);
-            var channel = await _connection.CreateChannelAsync(options, cancellationToken);
 
-            await DeclareAsync(channel, cancellationToken);
+            _channel = await _connection.CreateChannelAsync(options, cancellationToken);
 
-            // В поле — после объявления: быстрый путь выше отдаёт канал без блокировки.
-            _channel = channel;
-
-            _logger.LogInformation($"Топология объявлена (Host=\"{_settings.HostName}\", Port={_settings.Port}, VirtualHost=\"{_settings.VirtualHost}\", Queue=\"{ExportTopology.ExportsQueue}\")");
-
-            return channel;
+            return _channel;
         }
         finally
         {
-            _connectionLock.Release();
+            _channelLock.Release();
         }
     }
 
-    private static async Task DeclareAsync(IChannel channel, CancellationToken cancellationToken)
+    public async ValueTask DisposeAsync()
     {
-        await channel.ExchangeDeclareAsync(
-            ExportTopology.ExportsExchange,
-            ExchangeType.Direct,
-            durable: true,
-            autoDelete: false,
-            cancellationToken: cancellationToken);
-
-        var arguments = new Dictionary<string, object?>
-        {
-            // Quorum: очередь заданий реплицируется и переживает потерю узла.
-            ["x-queue-type"] = "quorum",
-            // Считать доставки — работа брокера.
-            ["x-delivery-limit"] = DeliveryLimit,
-            ["x-dead-letter-exchange"] = ExportTopology.RetryExchange,
-        };
-
-        await channel.QueueDeclareAsync(
-            ExportTopology.ExportsQueue,
-            durable: true,
-            exclusive: false,
-            autoDelete: false,
-            arguments: arguments,
-            cancellationToken: cancellationToken);
-
-        await channel.QueueBindAsync(
-            ExportTopology.ExportsQueue,
-            ExportTopology.ExportsExchange,
-            ExportTopology.ExportsRoutingKey,
-            cancellationToken: cancellationToken);
+        await CloseAsync();
+        _channelLock.Dispose();
     }
 
     private async Task CloseAsync()
@@ -190,12 +132,6 @@ public class ExportPublisher : IAsyncDisposable
         {
             await _channel.DisposeAsync();
             _channel = null;
-        }
-
-        if (_connection != null)
-        {
-            await _connection.DisposeAsync();
-            _connection = null;
         }
     }
 }

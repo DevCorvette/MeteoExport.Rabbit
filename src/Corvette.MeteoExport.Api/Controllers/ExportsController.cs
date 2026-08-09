@@ -1,7 +1,7 @@
 using System.Net.Mime;
 using Corvette.MeteoExport.Api.Models;
-using Corvette.MeteoExport.Api.Services;
 using Corvette.MeteoExport.Core;
+using Corvette.MeteoExport.Messaging.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

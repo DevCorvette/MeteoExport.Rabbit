@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Corvette.MeteoExport.Api.Middleware;
 using Corvette.MeteoExport.Api.OpenApi;
 using Corvette.MeteoExport.Api.Services;
 using Corvette.MeteoExport.Api.Settings;
@@ -97,6 +98,9 @@ internal static class Program
         });
 
         var application = builder.Build();
+
+        // Первым в конвейере: ловит и то, что бросили middleware ниже.
+        application.UseMiddleware<ErrorHandlingMiddleware>();
 
         application.MapOpenApi();
         application.MapScalarApiReference();

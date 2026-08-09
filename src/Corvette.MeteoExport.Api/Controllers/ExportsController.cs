@@ -36,6 +36,7 @@ public class ExportsController : ControllerBase
     [HttpPost]
     [ProducesResponseType<CreateExportResponse>(StatusCodes.Status202Accepted)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<CreateExportResponse>> CreateAsync(
         CreateExportRequest request,
         CancellationToken cancellationToken)
@@ -61,6 +62,7 @@ public class ExportsController : ControllerBase
     [HttpGet("{jobId:guid}")]
     [ProducesResponseType<ExportStatusResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<ExportStatusResponse>> GetAsync(Guid jobId, CancellationToken cancellationToken)
     {
         var status = await ExportStatusResponse.LoadAsync(_contextFactory, jobId, cancellationToken);

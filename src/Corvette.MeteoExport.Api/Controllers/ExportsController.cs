@@ -1,5 +1,6 @@
 using System.Net.Mime;
 using Corvette.MeteoExport.Api.Models;
+using Corvette.MeteoExport.Api.Services;
 using Corvette.MeteoExport.Core;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,13 +17,16 @@ namespace Corvette.MeteoExport.Api.Controllers;
 public class ExportsController : ControllerBase
 {
     private readonly IDbContextFactory<MeteoExportDbContext> _contextFactory;
+    private readonly ExportPublisher _publisher;
     private readonly ILogger<CreateExportRequest> _logger;
 
     public ExportsController(
         IDbContextFactory<MeteoExportDbContext> contextFactory,
+        ExportPublisher publisher,
         ILogger<CreateExportRequest> requestLogger)
     {
         _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
+        _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
         _logger = requestLogger ?? throw new ArgumentNullException(nameof(requestLogger));
     }
 
@@ -47,7 +51,7 @@ public class ExportsController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var jobId = await request.SaveAsync(_contextFactory, _logger, cancellationToken);
+        var jobId = await request.SaveAsync(_contextFactory, _publisher, _logger, cancellationToken);
         return Accepted($"/exports/{jobId}", new CreateExportResponse { JobId = jobId });
     }
 

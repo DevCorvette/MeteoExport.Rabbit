@@ -1,8 +1,29 @@
-# Локальный стенд для разработки MeteoExport: база.
+# Локальный стенд для разработки MeteoExport: база и брокер.
 # Запуск: docker compose up -d --wait   (из корня)
 name: meteoexport
 
 services:
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    restart: unless-stopped
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-meteoexport}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-meteoexport}
+      # Сколько брокер ждёт подтверждения, прежде чем закрыть канал и вернуть сообщение в очередь.
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit consumer_timeout 7200000"
+    ports:
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_UI_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   postgres:
     image: postgres:17
@@ -28,3 +49,4 @@ services:
 
 volumes:
   postgres-data:
+  rabbitmq-data:

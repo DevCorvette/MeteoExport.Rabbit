@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Corvette.MeteoExport.Api.OpenApi;
+using Corvette.MeteoExport.Api.Services;
 using Corvette.MeteoExport.Api.Settings;
 using Corvette.MeteoExport.Core;
 using NLog;
@@ -77,9 +78,12 @@ internal static class Program
         var settings = builder.Configuration.Get<ApiSettings>() ?? throw new InvalidOperationException("Конфигурация пуста — рядом с приложением нет appsettings.json.");
         settings.Validate();
 
+        // Вложенные секции кладём в контейнер отдельно, чтобы сервисы просили ровно то, что им нужно.
         builder.Services.AddSingleton(settings);
+        builder.Services.AddSingleton(settings.Rabbit);
 
         builder.Services.AddDbContextFactory<MeteoExportDbContext>(options => MeteoExportDbContextFactory.Configure(options, settings.ConnectionString));
+        builder.Services.AddSingleton<ExportPublisher>();
 
         builder.Services
             .AddControllers()

@@ -3,6 +3,7 @@ using System.Net.Mail;
 using Corvette.MeteoExport.Api.Services;
 using Corvette.MeteoExport.Core;
 using Corvette.MeteoExport.Core.Entities;
+using Corvette.MeteoExport.Core.Messages;
 using Corvette.MeteoExport.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -178,7 +179,11 @@ public class CreateExportRequest
             errors.Add($"Адрес почты не разобран (Email=\"{Email}\").");
         }
 
-        if (!string.IsNullOrWhiteSpace(WebhookUrl) && !IsHttpUrl(WebhookUrl))
+        if (string.IsNullOrWhiteSpace(WebhookUrl))
+            return;
+
+        if (!Uri.TryCreate(WebhookUrl, UriKind.Absolute, out var webhook)
+            || (webhook.Scheme != Uri.UriSchemeHttp && webhook.Scheme != Uri.UriSchemeHttps))
         {
             errors.Add($"Адрес вебхука должен быть абсолютной http- или https-ссылкой (WebhookUrl=\"{WebhookUrl}\").");
         }
@@ -203,14 +208,16 @@ public class CreateExportRequest
     }
 
     /// <summary>
-    /// Заводит задание, а если такое же уже выполняется — возвращает его.
+    /// Заводит задание и отдаёт его брокеру, а если такое же уже выполняется — возвращает его.
     /// </summary>
     public async Task<Guid> SaveAsync(
         IDbContextFactory<MeteoExportDbContext> contextFactory,
+        ExportPublisher publisher,
         ILogger<CreateExportRequest> logger,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(contextFactory);
+        ArgumentNullException.ThrowIfNull(publisher);
         ArgumentNullException.ThrowIfNull(logger);
 
         var requestHash = ComputeHash();
@@ -246,18 +253,28 @@ public class CreateExportRequest
             }
             catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
             {
-                // Проверка выше — быстрый путь, а не гарантия: два одновременных одинаковых запроса
-                // проходят её оба, и настоящий барьер здесь — частичный уникальный индекс.
+                // два одинаковых запроса
+                // текущий получается лишним
                 context.Entry(job).State = EntityState.Detached;
 
                 var rivalId = await FindActiveAsync(context, requestHash, cancellationToken)
                     ?? throw new InvalidOperationException($"Индекс отверг задание как дубль, но самого задания нет (RequestHash=\"{requestHash}\").");
 
                 logger.LogInformation($"Задание с таким отпечатком завели параллельно, возвращаем его (JobId=\"{rivalId}\", RequestHash=\"{requestHash}\")");
+                
+                // дальше делать нечего - выходим
                 return rivalId;
             }
 
             logger.LogInformation($"Задание принято (JobId=\"{job.Id}\", Points={job.Points.Count}, Variables={job.Variables.Length}, From=\"{From:O}\", To=\"{To:O}\")");
+
+            // публикуем событие
+            var successPublish = await publisher.PublishAsync(new RunExportMessage { JobId = job.Id }, cancellationToken);
+            if (successPublish)
+            {
+                job.PublishedAt = DateTime.UtcNow;
+                await context.SaveChangesAsync(cancellationToken);
+            }
 
             return job.Id;
         }
@@ -318,31 +335,15 @@ public class CreateExportRequest
             .Select(x => (Guid?)x.Id)
             .SingleOrDefaultAsync(cancellationToken);
 
-    private static bool IsHttpUrl(string value)
-    {
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
-            return false;
-
-        return uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps;
-    }
-
     /// <summary>
     /// Точки запроса без повторов по координатам.
     /// </summary>
-    /// <remarks>
-    /// Координаты сравниваем как есть, без округления: сблизить две соседние точки значило бы молча
-    /// выкинуть ту, которую клиент заказал. У совпавших остаётся первая подпись.
-    /// </remarks>
     private IReadOnlyList<ExportPointModel> ResolvePoints() =>
         [.. Points.DistinctBy(x => (x.Latitude, x.Longitude))];
 
     /// <summary>
     /// Заказанные величины без повторов, а если клиент их не выбрал — набор по умолчанию.
     /// </summary>
-    /// <remarks>
-    /// Повтор в списке смысла запроса не меняет, но менял бы отпечаток, оценку объёма и шапку CSV,
-    /// поэтому убирается раньше всех трёх. Порядок — как у клиента, им задаются колонки.
-    /// </remarks>
     private string[] ResolveVariables()
     {
         if (Variables == null || Variables.Length == 0)

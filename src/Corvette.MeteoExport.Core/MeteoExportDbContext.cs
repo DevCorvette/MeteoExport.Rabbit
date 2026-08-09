@@ -45,7 +45,7 @@ public class MeteoExportDbContext : DbContext
             {
                 points.ToJson("points");
 
-                // Без этого ключами в документе стали бы имена свойств C# в PascalCase.
+                // Ключи внутри документа задаём явно, по умолчанию берутся имена свойств C#.
                 points.Property(x => x.Latitude).HasJsonPropertyName("latitude");
                 points.Property(x => x.Longitude).HasJsonPropertyName("longitude");
                 points.Property(x => x.Name).HasJsonPropertyName("name");

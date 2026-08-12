@@ -1,5 +1,6 @@
 using Corvette.MeteoExport.Core.Entities;
 using Corvette.MeteoExport.Core.Models;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
 namespace Corvette.MeteoExport.Core;
@@ -26,6 +27,11 @@ public class MeteoExportDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Таблицы MassTransit
+        modelBuilder.AddInboxStateEntity();
+        modelBuilder.AddOutboxMessageEntity();
+        modelBuilder.AddOutboxStateEntity();
 
         modelBuilder.Entity<ExportJobEntity>(entity =>
         {
@@ -57,7 +63,7 @@ public class MeteoExportDbContext : DbContext
                 .HasFilter($"status in ({(int)ExportStatus.Queued}, {(int)ExportStatus.Running})")
                 .HasDatabaseName("uix_export_jobs_request_hash_active");
 
-            // Под подметающий проход по заданиям, чья команда не опубликовалась.
+            // Под поиск заданий, застрявших в очереди.
             entity.HasIndex(x => new { x.Status, x.CreatedAt })
                 .HasDatabaseName("ix_export_jobs_status_created_at");
         });

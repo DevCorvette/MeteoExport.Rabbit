@@ -62,23 +62,20 @@ public class ExportStatusResponse
     /// Читает состояние задания из базы; null — задания с таким идентификатором нет.
     /// </summary>
     public static async Task<ExportStatusResponse?> LoadAsync(
-        IDbContextFactory<MeteoExportDbContext> contextFactory,
+        MeteoExportDbContext context,
         Guid jobId,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(contextFactory);
+        ArgumentNullException.ThrowIfNull(context);
 
-        await using (var context = await contextFactory.CreateDbContextAsync(cancellationToken))
-        {
-            var job = await context.ExportJobs
-                .AsNoTracking()
-                .SingleOrDefaultAsync(x => x.Id == jobId, cancellationToken);
+        var job = await context.ExportJobs
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == jobId, cancellationToken);
 
-            if (job == null)
-                return null;
+        if (job == null)
+            return null;
 
-            return new ExportStatusResponse(job);
-        }
+        return new ExportStatusResponse(job);
     }
 }
 

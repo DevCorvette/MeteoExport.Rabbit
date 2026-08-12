@@ -24,12 +24,6 @@ public class ExportJobEntity
     public DateTime CreatedAt { get; set; }
 
     /// <summary>
-    /// Момент, когда брокер подтвердил приём команды на выполнение, UTC.
-    /// </summary>
-    [Column("published_at")]
-    public DateTime? PublishedAt { get; set; }
-
-    /// <summary>
     /// Момент, когда воркер взялся за задание, UTC.
     /// </summary>
     [Column("started_at")]

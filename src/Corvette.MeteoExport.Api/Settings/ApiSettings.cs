@@ -1,5 +1,3 @@
-using Corvette.MeteoExport.Messaging.Settings;
-
 namespace Corvette.MeteoExport.Api.Settings;
 
 /// <summary>

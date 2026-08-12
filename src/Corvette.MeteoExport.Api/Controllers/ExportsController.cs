@@ -1,9 +1,8 @@
 using System.Net.Mime;
 using Corvette.MeteoExport.Api.Models;
 using Corvette.MeteoExport.Core;
-using Corvette.MeteoExport.Messaging.Services;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Corvette.MeteoExport.Api.Controllers;
 
@@ -16,17 +15,17 @@ namespace Corvette.MeteoExport.Api.Controllers;
 [Produces(MediaTypeNames.Application.Json)]
 public class ExportsController : ControllerBase
 {
-    private readonly IDbContextFactory<MeteoExportDbContext> _contextFactory;
-    private readonly ExportPublisher _publisher;
-    private readonly ILogger<CreateExportRequest> _logger;
+    private readonly MeteoExportDbContext _context;
+    private readonly ISendEndpointProvider _sendEndpointProvider;
+    private readonly ILogger<ExportsController> _logger;
 
     public ExportsController(
-        IDbContextFactory<MeteoExportDbContext> contextFactory,
-        ExportPublisher publisher,
-        ILogger<CreateExportRequest> requestLogger)
+        MeteoExportDbContext context,
+        ISendEndpointProvider sendEndpointProvider,
+        ILogger<ExportsController> requestLogger)
     {
-        _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
-        _publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
+        _context = context ?? throw new ArgumentNullException(nameof(context));
+        _sendEndpointProvider = sendEndpointProvider ?? throw new ArgumentNullException(nameof(sendEndpointProvider));
         _logger = requestLogger ?? throw new ArgumentNullException(nameof(requestLogger));
     }
 
@@ -52,7 +51,7 @@ public class ExportsController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var jobId = await request.SaveAsync(_contextFactory, _publisher, _logger, cancellationToken);
+        var jobId = await request.SaveAsync(_context, _sendEndpointProvider, _logger, cancellationToken);
         return Accepted($"/exports/{jobId}", new CreateExportResponse { JobId = jobId });
     }
 
@@ -65,7 +64,7 @@ public class ExportsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<ExportStatusResponse>> GetAsync(Guid jobId, CancellationToken cancellationToken)
     {
-        var status = await ExportStatusResponse.LoadAsync(_contextFactory, jobId, cancellationToken);
+        var status = await ExportStatusResponse.LoadAsync(_context, jobId, cancellationToken);
         if (status == null)
             return NotFound();
 

@@ -4,8 +4,8 @@ using Corvette.MeteoExport.Api.Services;
 using Corvette.MeteoExport.Core;
 using Corvette.MeteoExport.Core.Entities;
 using Corvette.MeteoExport.Core.Models;
-using Corvette.MeteoExport.Messaging.Messages;
-using Corvette.MeteoExport.Messaging.Services;
+using Corvette.MeteoExport.Core.Messages;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -83,7 +83,7 @@ public class CreateExportRequest
     /// <summary>
     /// Проверяет запрос; пустой список означает, что запрос годится.
     /// </summary>
-    public IReadOnlyList<string> Validate(ILogger<CreateExportRequest> logger)
+    public IReadOnlyList<string> Validate(ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
 
@@ -209,76 +209,68 @@ public class CreateExportRequest
     }
 
     /// <summary>
-    /// Заводит задание и отдаёт его брокеру, а если такое же уже выполняется — возвращает его.
+    /// Заводит задание вместе с командой на выполнение, а если такое же уже выполняется — возвращает его.
     /// </summary>
     public async Task<Guid> SaveAsync(
-        IDbContextFactory<MeteoExportDbContext> contextFactory,
-        ExportPublisher publisher,
-        ILogger<CreateExportRequest> logger,
+        MeteoExportDbContext context,
+        ISendEndpointProvider sendEndpointProvider,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(contextFactory);
-        ArgumentNullException.ThrowIfNull(publisher);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(sendEndpointProvider);
         ArgumentNullException.ThrowIfNull(logger);
 
         var requestHash = ComputeHash();
 
-        await using (var context = await contextFactory.CreateDbContextAsync(cancellationToken))
+        var existingId = await FindActiveAsync(context, requestHash, cancellationToken);
+        if (existingId != null)
         {
-            var existingId = await FindActiveAsync(context, requestHash, cancellationToken);
-            if (existingId != null)
-            {
-                logger.LogInformation($"Задание с таким отпечатком уже выполняется, новое не заводим (JobId=\"{existingId}\", RequestHash=\"{requestHash}\")");
-                return existingId.Value;
-            }
-
-            // сохраняем
-            var job = new ExportJobEntity
-            {
-                Id = Guid.CreateVersion7(),
-                Status = ExportStatus.Queued,
-                RequestHash = requestHash,
-                Points = ResolvePoints().Select(x => x.ToPoint()).ToList(),
-                FromDate = From,
-                ToDate = To,
-                Variables = ResolveVariables(),
-                Email = Email?.Trim(),
-                WebhookUrl = WebhookUrl?.Trim(),
-            };
-
-            context.ExportJobs.Add(job);
-
-            try
-            {
-                await context.SaveChangesAsync(cancellationToken);
-            }
-            catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
-            {
-                // два одинаковых запроса
-                // текущий получается лишним
-                context.Entry(job).State = EntityState.Detached;
-
-                var rivalId = await FindActiveAsync(context, requestHash, cancellationToken)
-                    ?? throw new InvalidOperationException($"Индекс отверг задание как дубль, но самого задания нет (RequestHash=\"{requestHash}\").");
-
-                logger.LogInformation($"Задание с таким отпечатком завели параллельно, возвращаем его (JobId=\"{rivalId}\", RequestHash=\"{requestHash}\")");
-                
-                // дальше делать нечего - выходим
-                return rivalId;
-            }
-
-            logger.LogInformation($"Задание принято (JobId=\"{job.Id}\", Points={job.Points.Count}, Variables={job.Variables.Length}, From=\"{From:O}\", To=\"{To:O}\")");
-
-            // публикуем событие
-            var successPublish = await publisher.PublishAsync(new RunExportMessage { JobId = job.Id }, cancellationToken);
-            if (successPublish)
-            {
-                job.PublishedAt = DateTime.UtcNow;
-                await context.SaveChangesAsync(cancellationToken);
-            }
-
-            return job.Id;
+            logger.LogInformation($"Задание с таким отпечатком уже выполняется, новое не заводим (JobId=\"{existingId}\", RequestHash=\"{requestHash}\")");
+            return existingId.Value;
         }
+
+        // задание
+        var job = new ExportJobEntity
+        {
+            Id = Guid.CreateVersion7(),
+            Status = ExportStatus.Queued,
+            RequestHash = requestHash,
+            Points = ResolvePoints().Select(x => x.ToPoint()).ToList(),
+            FromDate = From,
+            ToDate = To,
+            Variables = ResolveVariables(),
+            Email = Email?.Trim(),
+            WebhookUrl = WebhookUrl?.Trim(),
+        };
+
+        context.ExportJobs.Add(job);
+
+        // команда
+        var endpoint = await sendEndpointProvider.GetSendEndpoint(new Uri($"exchange:{EndpointNames.Exports}"));
+        await endpoint.Send(new RunExportMessage { JobId = job.Id }, cancellationToken);
+
+        // сохраняем
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            // два одинаковых запроса
+            // текущий получается лишним, вместе с ним откатилась и его команда
+            context.Entry(job).State = EntityState.Detached;
+
+            var rivalId = await FindActiveAsync(context, requestHash, cancellationToken)
+                ?? throw new InvalidOperationException($"Индекс отверг задание как дубль, но самого задания нет (RequestHash=\"{requestHash}\").");
+
+            logger.LogInformation($"Задание с таким отпечатком завели параллельно, возвращаем его (JobId=\"{rivalId}\", RequestHash=\"{requestHash}\")");
+            return rivalId;
+        }
+
+        // успех
+        logger.LogInformation($"Задание принято (JobId=\"{job.Id}\", Points={job.Points.Count}, Variables={job.Variables.Length}, From=\"{From:O}\", To=\"{To:O}\")");
+        return job.Id;
     }
 
     /// <summary>

@@ -3,7 +3,7 @@ using Corvette.MeteoExport.Api.Middleware;
 using Corvette.MeteoExport.Api.OpenApi;
 using Corvette.MeteoExport.Api.Settings;
 using Corvette.MeteoExport.Core;
-using Corvette.MeteoExport.Messaging.Services;
+using MassTransit;
 using NLog;
 using NLog.Extensions.Logging;
 using Scalar.AspNetCore;
@@ -20,6 +20,7 @@ internal static class Program
     private const int ExitConfigurationError = 2;
 
     private const string NLogConfigFileName = "NLog.config";
+    private static readonly TimeSpan OutboxQueryDelay = TimeSpan.FromSeconds(1);
 
     private static async Task<int> Main(string[] args)
     {
@@ -83,10 +84,27 @@ internal static class Program
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(settings.Rabbit);
 
-        builder.Services.AddDbContextFactory<MeteoExportDbContext>(options => MeteoExportDbContextFactory.Configure(options, settings.ConnectionString));
+        // Контекст на запрос ради MassTransit.Outbox
+        builder.Services.AddDbContext<MeteoExportDbContext>(options => MeteoExportDbContextFactory.Configure(options, settings.ConnectionString));
         
-        builder.Services.AddSingleton<RabbitConnection>();
-        builder.Services.AddSingleton<ExportPublisher>();
+        builder.Services.AddMassTransit(bus =>
+        {
+            bus.AddEntityFrameworkOutbox<MeteoExportDbContext>(outbox =>
+            {
+                outbox.UsePostgres();
+                outbox.UseBusOutbox();
+                outbox.QueryDelay = OutboxQueryDelay; // Как часто доставщик заглядывает в таблицу исходящих
+            });
+
+            bus.UsingRabbitMq((_, rabbit) =>
+            {
+                rabbit.Host(settings.Rabbit.HostName, (ushort)settings.Rabbit.Port, settings.Rabbit.VirtualHost, settings.Rabbit.ClientName, host =>
+                {
+                    host.Username(settings.Rabbit.UserName);
+                    host.Password(settings.Rabbit.Password);
+                });
+            });
+        });
 
         builder.Services
             .AddControllers()

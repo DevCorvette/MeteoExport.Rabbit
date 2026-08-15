@@ -86,12 +86,15 @@ internal static class Program
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(settings.Rabbit);
         builder.Services.AddSingleton(settings.Storage);
+        builder.Services.AddSingleton(settings.OpenMeteo);
 
         builder.Services.AddDbContextFactory<MeteoExportDbContext>(options => MeteoExportDbContextFactory.Configure(options, settings.ConnectionString));
 
         builder.Services.AddSingleton<ExportJobRepository>();
         builder.Services.AddSingleton<ResultStorage>();
         builder.Services.AddSingleton<DraftFiles>();
+        builder.Services.AddSingleton<OpenMeteoClient>();
+        builder.Services.AddSingleton<ExportBuilder>();
         builder.Services.AddSingleton<ExportRunner>();
 
         // Раньше шины: к приходу первой команды каталог черновиков чист, а корзина заведена.

@@ -1,27 +1,27 @@
-using System.Globalization;
-using Corvette.MeteoExport.Core.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Corvette.MeteoExport.Worker.Services;
 
 /// <summary>
-/// Выполняет задание на выгрузку.
+/// Выполняет задание на выгрузку: расставляет шаги и следит за статусом.
 /// </summary>
 public class ExportRunner
 {
-    /// <summary>
-    /// Сколько заглушка изображает работу.
-    /// </summary>
-    private static readonly TimeSpan StubDuration = TimeSpan.FromSeconds(5);
-
     private readonly ExportJobRepository _repository;
+    private readonly ExportBuilder _builder;
     private readonly ResultStorage _storage;
     private readonly DraftFiles _drafts;
     private readonly ILogger<ExportRunner> _logger;
 
-    public ExportRunner(ExportJobRepository repository, ResultStorage storage, DraftFiles drafts, ILogger<ExportRunner> logger)
+    public ExportRunner(
+        ExportJobRepository repository,
+        ExportBuilder builder,
+        ResultStorage storage,
+        DraftFiles drafts,
+        ILogger<ExportRunner> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _builder = builder ?? throw new ArgumentNullException(nameof(builder));
         _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         _drafts = drafts ?? throw new ArgumentNullException(nameof(drafts));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -32,18 +32,24 @@ public class ExportRunner
     /// </summary>
     public async Task RunAsync(Guid jobId, CancellationToken cancellationToken)
     {
+        _logger.LogInformation($"Начинаем обработку команды (JobId=\"{jobId}\")");
+
         var job = await _repository.ClaimAsync(jobId, cancellationToken);
 
         // Задания нет или оно уже завершено
         if (job == null)
             return;
 
+        _logger.LogInformation($"Задание получено (JobId=\"{job.Id}\", Points={job.Points.Count}, From=\"{job.FromDate:O}\", To=\"{job.ToDate:O}\", Variables={job.Variables.Length})");
+
+        var draftPath = _drafts.GetPath(job.Id);
+
         try
         {
-            var draftPath = _drafts.GetPath(job.Id);
-            
             // собираем файл
-            await ExportAsync(job, draftPath, cancellationToken);
+            await _builder.BuildAsync(job, draftPath, cancellationToken);
+
+            _logger.LogInformation($"Выгрузка завершена (JobId=\"{job.Id}\", DraftPath=\"{draftPath}\")");
 
             // отдаём в хранилище
             var resultKey = await _storage.UploadAsync(draftPath, job.Id, cancellationToken);
@@ -52,7 +58,7 @@ public class ExportRunner
             // завершаем
             await _repository.CompleteAsync(job.Id, resultKey, cancellationToken);
 
-            _logger.LogInformation($"Задание выполнено (JobId=\"{job.Id}\", ResultFilePath=\"{resultKey}\")");
+            _logger.LogInformation($"Задание завершено (JobId=\"{job.Id}\", ResultFilePath=\"{resultKey}\")");
         }
         catch (OperationCanceledException)
         {
@@ -66,21 +72,5 @@ public class ExportRunner
             await _repository.FailAsync(job.Id, exception.Message, cancellationToken);
             throw;
         }
-    }
-
-    private async Task ExportAsync(ExportJobEntity job, string draftPath, CancellationToken cancellationToken)
-    {
-        // заглушка
-        var lines = new List<string> { string.Join(',', new[] { "latitude", "longitude", "name", "date" }.Concat(job.Variables)) };
-
-        foreach (var point in job.Points)
-        {
-            var values = new[] { point.Latitude.ToString(CultureInfo.InvariantCulture), point.Longitude.ToString(CultureInfo.InvariantCulture), point.Name, job.FromDate.ToString("O") };
-            lines.Add(string.Join(',', values.Concat(job.Variables.Select(_ => string.Empty))));
-        }
-
-        await File.WriteAllLinesAsync(draftPath, lines, cancellationToken);
-
-        await Task.Delay(StubDuration, cancellationToken);
     }
 }

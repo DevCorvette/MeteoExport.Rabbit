@@ -72,6 +72,25 @@ public class ExportJobRepository
     }
 
     /// <summary>
+    /// Запоминает, сколько кусков работы предстоит и сколько из них уже сделано.
+    /// </summary>
+    public async Task SaveProgressAsync(Guid jobId, int chunksDone, int chunksTotal, CancellationToken cancellationToken)
+    {
+        if (chunksDone < 0) throw new ArgumentOutOfRangeException(nameof(chunksDone), "Число выполненных кусков отрицательное.");
+        if (chunksTotal <= 0) throw new ArgumentOutOfRangeException(nameof(chunksTotal), "Число кусков работы должно быть больше нуля.");
+
+        await using (var context = await _contextFactory.CreateDbContextAsync(cancellationToken))
+        {
+            // Условие на Running: перехваченное соседом задание уже не наше, о потере скажет завершение.
+            await context.ExportJobs
+                .Where(x => x.Id == jobId && x.Status == ExportStatus.Running)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.ChunksDone, chunksDone)
+                    .SetProperty(x => x.ChunksTotal, chunksTotal), cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Отмечает задание выполненным и запоминает, где лежит файл.
     /// </summary>
     public async Task CompleteAsync(Guid jobId, string resultFilePath, CancellationToken cancellationToken)

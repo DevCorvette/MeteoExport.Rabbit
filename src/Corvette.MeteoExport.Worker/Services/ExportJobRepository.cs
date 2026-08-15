@@ -72,11 +72,13 @@ public class ExportJobRepository
     }
 
     /// <summary>
-    /// Отмечает задание выполненным.
+    /// Отмечает задание выполненным и запоминает, где лежит файл.
     /// </summary>
-    public async Task CompleteAsync(Guid jobId, CancellationToken cancellationToken)
+    public async Task CompleteAsync(Guid jobId, string resultFilePath, CancellationToken cancellationToken)
     {
-        await FinishAsync(jobId, ExportStatus.Completed, error: null, cancellationToken);
+        if (string.IsNullOrWhiteSpace(resultFilePath)) throw new ArgumentException("Не задан путь к файлу результата.", nameof(resultFilePath));
+
+        await FinishAsync(jobId, ExportStatus.Completed, error: null, resultFilePath, cancellationToken);
     }
 
     /// <summary>
@@ -86,10 +88,10 @@ public class ExportJobRepository
     {
         if (string.IsNullOrWhiteSpace(error)) throw new ArgumentException("Не задан текст ошибки.", nameof(error));
 
-        await FinishAsync(jobId, ExportStatus.Failed, error, cancellationToken);
+        await FinishAsync(jobId, ExportStatus.Failed, error, resultFilePath: null, cancellationToken);
     }
 
-    private async Task FinishAsync(Guid jobId, ExportStatus status, string? error, CancellationToken cancellationToken)
+    private async Task FinishAsync(Guid jobId, ExportStatus status, string? error, string? resultFilePath, CancellationToken cancellationToken)
     {
         await using (var context = await _contextFactory.CreateDbContextAsync(cancellationToken))
         {
@@ -99,7 +101,8 @@ public class ExportJobRepository
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(x => x.Status, status)
                     .SetProperty(x => x.FinishedAt, DateTime.UtcNow)
-                    .SetProperty(x => x.Error, error), cancellationToken);
+                    .SetProperty(x => x.Error, error)
+                    .SetProperty(x => x.ResultFilePath, resultFilePath), cancellationToken);
 
             if (finished == 0)
                 _logger.LogWarning($"Задание уже не в работе, статус не изменён (JobId=\"{jobId}\", Status=\"{status}\")");

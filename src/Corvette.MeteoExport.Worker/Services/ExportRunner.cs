@@ -1,3 +1,4 @@
+using System.Globalization;
 using Corvette.MeteoExport.Core.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -14,11 +15,15 @@ public class ExportRunner
     private static readonly TimeSpan StubDuration = TimeSpan.FromSeconds(5);
 
     private readonly ExportJobRepository _repository;
+    private readonly ResultStorage _storage;
+    private readonly DraftFiles _drafts;
     private readonly ILogger<ExportRunner> _logger;
 
-    public ExportRunner(ExportJobRepository repository, ILogger<ExportRunner> logger)
+    public ExportRunner(ExportJobRepository repository, ResultStorage storage, DraftFiles drafts, ILogger<ExportRunner> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+        _drafts = drafts ?? throw new ArgumentNullException(nameof(drafts));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -35,11 +40,19 @@ public class ExportRunner
 
         try
         {
-            await ExportAsync(job, cancellationToken);
+            var draftPath = _drafts.GetPath(job.Id);
+            
+            // собираем файл
+            await ExportAsync(job, draftPath, cancellationToken);
 
-            await _repository.CompleteAsync(job.Id, cancellationToken);
+            // отдаём в хранилище
+            var resultKey = await _storage.UploadAsync(draftPath, job.Id, cancellationToken);
+            _drafts.Delete(job.Id);
 
-            _logger.LogInformation($"Задание выполнено (JobId=\"{job.Id}\")");
+            // завершаем
+            await _repository.CompleteAsync(job.Id, resultKey, cancellationToken);
+
+            _logger.LogInformation($"Задание выполнено (JobId=\"{job.Id}\", ResultFilePath=\"{resultKey}\")");
         }
         catch (OperationCanceledException)
         {
@@ -55,9 +68,19 @@ public class ExportRunner
         }
     }
 
-    private async Task ExportAsync(ExportJobEntity job, CancellationToken cancellationToken)
+    private async Task ExportAsync(ExportJobEntity job, string draftPath, CancellationToken cancellationToken)
     {
         // заглушка
+        var lines = new List<string> { string.Join(',', new[] { "latitude", "longitude", "name", "date" }.Concat(job.Variables)) };
+
+        foreach (var point in job.Points)
+        {
+            var values = new[] { point.Latitude.ToString(CultureInfo.InvariantCulture), point.Longitude.ToString(CultureInfo.InvariantCulture), point.Name, job.FromDate.ToString("O") };
+            lines.Add(string.Join(',', values.Concat(job.Variables.Select(_ => string.Empty))));
+        }
+
+        await File.WriteAllLinesAsync(draftPath, lines, cancellationToken);
+
         await Task.Delay(StubDuration, cancellationToken);
     }
 }

@@ -1,6 +1,7 @@
 using Corvette.MeteoExport.Core;
 using MassTransit;
 using Corvette.MeteoExport.Worker.Consumers;
+using Corvette.MeteoExport.Worker.HostedServices;
 using Corvette.MeteoExport.Worker.Services;
 using Corvette.MeteoExport.Worker.Settings;
 using Microsoft.Extensions.Configuration;
@@ -84,11 +85,17 @@ internal static class Program
         // Вложенные секции кладём в контейнер отдельно, чтобы сервисы просили ровно то, что им нужно.
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(settings.Rabbit);
+        builder.Services.AddSingleton(settings.Storage);
 
         builder.Services.AddDbContextFactory<MeteoExportDbContext>(options => MeteoExportDbContextFactory.Configure(options, settings.ConnectionString));
 
         builder.Services.AddSingleton<ExportJobRepository>();
+        builder.Services.AddSingleton<ResultStorage>();
+        builder.Services.AddSingleton<DraftFiles>();
         builder.Services.AddSingleton<ExportRunner>();
+
+        // Раньше шины: к приходу первой команды каталог черновиков чист, а корзина заведена.
+        builder.Services.AddHostedService<StartupService>();
 
         builder.Services.AddMassTransit(bus =>
         {

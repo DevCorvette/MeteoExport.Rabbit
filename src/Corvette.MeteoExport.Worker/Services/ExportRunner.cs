@@ -1,9 +1,11 @@
+using Corvette.MeteoExport.Core.Messages;
+using MassTransit;
 using Microsoft.Extensions.Logging;
 
 namespace Corvette.MeteoExport.Worker.Services;
 
 /// <summary>
-/// Выполняет задание на выгрузку: расставляет шаги и следит за статусом.
+/// Выполняет задание на выгрузку - оркестр: расставляет шаги и сдаёт работу финализатору.
 /// </summary>
 public class ExportRunner
 {
@@ -11,6 +13,7 @@ public class ExportRunner
     private readonly ExportBuilder _builder;
     private readonly ResultStorage _storage;
     private readonly DraftFiles _drafts;
+    private readonly ISendEndpointProvider _sendEndpointProvider;
     private readonly ILogger<ExportRunner> _logger;
 
     public ExportRunner(
@@ -18,17 +21,19 @@ public class ExportRunner
         ExportBuilder builder,
         ResultStorage storage,
         DraftFiles drafts,
+        ISendEndpointProvider sendEndpointProvider,
         ILogger<ExportRunner> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _builder = builder ?? throw new ArgumentNullException(nameof(builder));
         _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         _drafts = drafts ?? throw new ArgumentNullException(nameof(drafts));
+        _sendEndpointProvider = sendEndpointProvider ?? throw new ArgumentNullException(nameof(sendEndpointProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
-    /// Выполняет задание по команде и доводит его до конечного статуса.
+    /// Выполняет задание по команде и сдаёт результат финализатору.
     /// </summary>
     public async Task RunAsync(Guid jobId, CancellationToken cancellationToken)
     {
@@ -44,33 +49,19 @@ public class ExportRunner
 
         var draftPath = _drafts.GetPath(job.Id);
 
-        try
-        {
-            // собираем файл
-            await _builder.BuildAsync(job, draftPath, cancellationToken);
+        // собираем файл
+        await _builder.BuildAsync(job, draftPath, cancellationToken);
 
-            _logger.LogInformation($"Выгрузка завершена (JobId=\"{job.Id}\", DraftPath=\"{draftPath}\")");
+        _logger.LogInformation($"Выгрузка завершена (JobId=\"{job.Id}\", DraftPath=\"{draftPath}\")");
 
-            // отдаём в хранилище
-            var resultKey = await _storage.UploadAsync(draftPath, job.Id, cancellationToken);
-            _drafts.Delete(job.Id);
+        // отдаём в хранилище
+        var resultKey = await _storage.UploadAsync(draftPath, job.Id, cancellationToken);
+        _drafts.Delete(job.Id);
 
-            // завершаем
-            await _repository.CompleteAsync(job.Id, resultKey, cancellationToken);
+        // сдаём работу
+        var endpoint = await _sendEndpointProvider.GetSendEndpoint(new Uri($"exchange:{EndpointNames.ExportsFinish}"));
+        await endpoint.Send(new FinishExportMessage { JobId = job.Id, ResultFilePath = resultKey }, cancellationToken);
 
-            _logger.LogInformation($"Задание завершено (JobId=\"{job.Id}\", ResultFilePath=\"{resultKey}\")");
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError($"Задание не выполнено (JobId=\"{job.Id}\", Error=\"{exception.Message}\")");
-
-            // Наше дело — записать статус, разбирается с ошибкой шина.
-            await _repository.FailAsync(job.Id, exception.Message, cancellationToken);
-            throw;
-        }
+        _logger.LogInformation($"Выгрузка сдана финализатору (JobId=\"{job.Id}\", ResultFilePath=\"{resultKey}\")");
     }
 }

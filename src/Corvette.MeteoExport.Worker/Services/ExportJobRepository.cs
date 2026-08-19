@@ -11,28 +11,30 @@ namespace Corvette.MeteoExport.Worker.Services;
 /// </summary>
 public class ExportJobRepository
 {
-    private readonly IDbContextFactory<MeteoExportDbContext> _contextFactory;
+    private readonly MeteoExportDbContext _context;
     private readonly ILogger<ExportJobRepository> _logger;
 
-    public ExportJobRepository(IDbContextFactory<MeteoExportDbContext> contextFactory, ILogger<ExportJobRepository> logger)
+    public ExportJobRepository(MeteoExportDbContext context, ILogger<ExportJobRepository> logger)
     {
-        _contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
+        _context = context ?? throw new ArgumentNullException(nameof(context));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
     /// Берёт задание в работу
     /// </summary>
+    /// <remarks>
+    /// Открывает свою транзакцию
+    /// </remarks>
     /// <returns>
     /// null - если брать нечего
     /// </returns>
     public async Task<ExportJobEntity?> ClaimAsync(Guid jobId, CancellationToken cancellationToken)
     {
-        await using (var context = await _contextFactory.CreateDbContextAsync(cancellationToken))
-        await using (var transaction = await context.Database.BeginTransactionAsync(cancellationToken))
+        await using (var transaction = await _context.Database.BeginTransactionAsync(cancellationToken))
         {
             // берём строку с блокировкой
-            var job = await context.ExportJobs
+            var job = await _context.ExportJobs
                 .FromSql($"select * from export_jobs where id = {jobId} for update")
                 .SingleOrDefaultAsync(cancellationToken);
 
@@ -64,7 +66,7 @@ public class ExportJobRepository
             job.ChunksDone = 0; // Выгрузка начинается с нуля, прогресс прошлой попытки к ней отношения не имеет
             job.Error = null;
 
-            await context.SaveChangesAsync(cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
             return job;
@@ -79,52 +81,53 @@ public class ExportJobRepository
         if (chunksDone < 0) throw new ArgumentOutOfRangeException(nameof(chunksDone), "Число выполненных кусков отрицательное.");
         if (chunksTotal <= 0) throw new ArgumentOutOfRangeException(nameof(chunksTotal), "Число кусков работы должно быть больше нуля.");
 
-        await using (var context = await _contextFactory.CreateDbContextAsync(cancellationToken))
-        {
-            // Условие на Running: перехваченное соседом задание уже не наше, о потере скажет завершение.
-            await context.ExportJobs
-                .Where(x => x.Id == jobId && x.Status == ExportStatus.Running)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(x => x.ChunksDone, chunksDone)
-                    .SetProperty(x => x.ChunksTotal, chunksTotal), cancellationToken);
-        }
+        // Условие на Running: перехваченное соседом задание уже не наше, о потере скажет завершение.
+        await _context.ExportJobs
+            .Where(x => x.Id == jobId && x.Status == ExportStatus.Running)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.ChunksDone, chunksDone)
+                .SetProperty(x => x.ChunksTotal, chunksTotal), cancellationToken);
     }
 
     /// <summary>
-    /// Отмечает задание выполненным и запоминает, где лежит файл.
+    /// Ставит заданию конечный статус.
     /// </summary>
-    public async Task CompleteAsync(Guid jobId, string resultFilePath, CancellationToken cancellationToken)
+    /// <remarks>
+    /// Работает в чужой транзакции
+    /// </remarks>
+    /// <returns>
+    /// Задание с проставленным результатом
+    /// null - если оно уже не в работе
+    /// </returns>
+    public async Task<ExportJobEntity?> FinishAsync(
+        Guid jobId,
+        ExportStatus status,
+        string? resultFilePath,
+        string? error,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(resultFilePath)) throw new ArgumentException("Не задан путь к файлу результата.", nameof(resultFilePath));
+        if (status != ExportStatus.Completed && status != ExportStatus.Failed) throw new ArgumentOutOfRangeException(nameof(status), "Итогом может быть только конечный статус.");
 
-        await FinishAsync(jobId, ExportStatus.Completed, error: null, resultFilePath, cancellationToken);
-    }
-
-    /// <summary>
-    /// Отмечает задание неудавшимся.
-    /// </summary>
-    public async Task FailAsync(Guid jobId, string error, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(error)) throw new ArgumentException("Не задан текст ошибки.", nameof(error));
-
-        await FinishAsync(jobId, ExportStatus.Failed, error, resultFilePath: null, cancellationToken);
-    }
-
-    private async Task FinishAsync(Guid jobId, ExportStatus status, string? error, string? resultFilePath, CancellationToken cancellationToken)
-    {
-        await using (var context = await _contextFactory.CreateDbContextAsync(cancellationToken))
+        var job = await _context.ExportJobs.SingleOrDefaultAsync(x => x.Id == jobId, cancellationToken);
+        if (job == null)
         {
-            // Условие на Running: задание, перехваченное соседним воркером, уже не наше.
-            var finished = await context.ExportJobs
-                .Where(x => x.Id == jobId && x.Status == ExportStatus.Running)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(x => x.Status, status)
-                    .SetProperty(x => x.FinishedAt, DateTime.UtcNow)
-                    .SetProperty(x => x.Error, error)
-                    .SetProperty(x => x.ResultFilePath, resultFilePath), cancellationToken);
-
-            if (finished == 0)
-                _logger.LogWarning($"Задание уже не в работе, статус не изменён (JobId=\"{jobId}\", Status=\"{status}\")");
+            _logger.LogError($"Задания нет в базе, итог подводить нечему (JobId=\"{jobId}\")");
+            return null;
         }
+
+        if (job.Status != ExportStatus.Running)
+        {
+            _logger.LogWarning($"Задание уже не в работе, статус не изменён (JobId=\"{jobId}\", Status=\"{job.Status}\")");
+            return null;
+        }
+
+        job.Status = status;
+        job.FinishedAt = DateTime.UtcNow;
+        job.Error = error;
+        job.ResultFilePath = resultFilePath;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return job;
     }
 }

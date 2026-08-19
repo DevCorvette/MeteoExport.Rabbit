@@ -88,14 +88,16 @@ internal static class Program
         builder.Services.AddSingleton(settings.Storage);
         builder.Services.AddSingleton(settings.OpenMeteo);
 
-        builder.Services.AddDbContextFactory<MeteoExportDbContext>(options => MeteoExportDbContextFactory.Configure(options, settings.ConnectionString));
+        builder.Services.AddDbContext<MeteoExportDbContext>(options => MeteoExportDbContextFactory.Configure(options, settings.ConnectionString));
 
-        builder.Services.AddSingleton<ExportJobRepository>();
+        // scoped для контекста
+        builder.Services.AddScoped<ExportJobRepository>();
+        builder.Services.AddScoped<ExportBuilder>();
+        builder.Services.AddScoped<ExportRunner>();
+
         builder.Services.AddSingleton<ResultStorage>();
         builder.Services.AddSingleton<DraftFiles>();
         builder.Services.AddSingleton<OpenMeteoClient>();
-        builder.Services.AddSingleton<ExportBuilder>();
-        builder.Services.AddSingleton<ExportRunner>();
 
         // Раньше шины: к приходу первой команды каталог черновиков чист, а корзина заведена.
         builder.Services.AddHostedService<StartupService>();
@@ -103,6 +105,11 @@ internal static class Program
         builder.Services.AddMassTransit(bus =>
         {
             bus.AddConsumer<ExportConsumer>(typeof(ExportConsumerDefinition));
+            bus.AddConsumer<FinishExportConsumer>(typeof(FinishExportConsumerDefinition));
+            bus.AddConsumer<ExportFaultConsumer>(typeof(ExportFaultConsumerDefinition));
+
+            // Аутбокс точки приёма для финализатора
+            bus.AddEntityFrameworkOutbox<MeteoExportDbContext>(outbox => outbox.UsePostgres());
 
             bus.UsingRabbitMq((context, rabbit) =>
             {

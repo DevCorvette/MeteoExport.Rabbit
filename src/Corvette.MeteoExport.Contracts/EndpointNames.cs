@@ -19,4 +19,14 @@ public static class EndpointNames
     /// Сообщения о сбое обработки выгрузки.
     /// </summary>
     public const string ExportsFault = "exports.fault";
+
+    /// <summary>
+    /// Письма о завершении задания.
+    /// </summary>
+    public const string NotifyEmail = "notify.email";
+
+    /// <summary>
+    /// Вебхуки о завершении задания.
+    /// </summary>
+    public const string NotifyWebhook = "notify.webhook";
 }

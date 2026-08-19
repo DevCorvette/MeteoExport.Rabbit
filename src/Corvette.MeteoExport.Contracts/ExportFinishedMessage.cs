@@ -1,6 +1,4 @@
-using Corvette.MeteoExport.Core.Models;
-
-namespace Corvette.MeteoExport.Core.Messages;
+namespace Corvette.MeteoExport.Contracts;
 
 /// <summary>
 /// Событие «задание завершено» — повод отправить письмо и вебхук.

@@ -1,9 +1,9 @@
 using Corvette.MeteoExport.Core;
-using MassTransit;
 using Corvette.MeteoExport.Worker.Consumers;
 using Corvette.MeteoExport.Worker.HostedServices;
 using Corvette.MeteoExport.Worker.Services;
 using Corvette.MeteoExport.Worker.Settings;
+using MassTransit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

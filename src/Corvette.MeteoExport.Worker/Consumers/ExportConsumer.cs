@@ -1,4 +1,4 @@
-using Corvette.MeteoExport.Core.Messages;
+using Corvette.MeteoExport.Contracts;
 using Corvette.MeteoExport.Worker.Services;
 using MassTransit;
 

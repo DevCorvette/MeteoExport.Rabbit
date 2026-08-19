@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using Corvette.MeteoExport.Contracts;
 using Corvette.MeteoExport.Core.Models;
 
 namespace Corvette.MeteoExport.Core.Entities;

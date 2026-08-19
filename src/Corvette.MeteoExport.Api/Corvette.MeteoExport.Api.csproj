@@ -24,6 +24,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Corvette.MeteoExport.Core\Corvette.MeteoExport.Core.csproj" />
+      <ProjectReference Include="..\Corvette.MeteoExport.Contracts\Corvette.MeteoExport.Contracts.csproj" />
     </ItemGroup>
 
     <ItemGroup>

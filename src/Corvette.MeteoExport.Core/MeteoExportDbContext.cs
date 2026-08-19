@@ -1,5 +1,5 @@
+using Corvette.MeteoExport.Contracts;
 using Corvette.MeteoExport.Core.Entities;
-using Corvette.MeteoExport.Core.Models;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 

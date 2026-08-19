@@ -1,5 +1,5 @@
+using Corvette.MeteoExport.Contracts;
 using Corvette.MeteoExport.Core;
-using Corvette.MeteoExport.Core.Messages;
 using MassTransit;
 
 namespace Corvette.MeteoExport.Worker.Consumers;

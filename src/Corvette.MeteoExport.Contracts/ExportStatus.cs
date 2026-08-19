@@ -1,4 +1,4 @@
-namespace Corvette.MeteoExport.Core.Models;
+namespace Corvette.MeteoExport.Contracts;
 
 /// <summary>
 /// Стадия жизненного цикла задания на выгрузку.

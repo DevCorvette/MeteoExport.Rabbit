@@ -1,6 +1,6 @@
+using Corvette.MeteoExport.Contracts;
 using Corvette.MeteoExport.Core;
 using Corvette.MeteoExport.Core.Entities;
-using Corvette.MeteoExport.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 

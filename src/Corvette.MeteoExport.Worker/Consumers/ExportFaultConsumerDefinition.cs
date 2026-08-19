@@ -20,7 +20,7 @@ public class ExportFaultConsumerDefinition : ConsumerDefinition<ExportFaultConsu
     protected override void ConfigureConsumer(
         IReceiveEndpointConfigurator endpointConfigurator,
         IConsumerConfigurator<ExportFaultConsumer> consumerConfigurator,
-        IRegistrationContext context)
+        IRegistrationContext registrationContext)
     {
         endpointConfigurator.UseMessageRetry(retry => retry.Interval(RetryCount, RetryInterval));
 

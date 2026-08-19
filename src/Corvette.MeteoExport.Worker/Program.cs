@@ -111,7 +111,7 @@ internal static class Program
             // Аутбокс точки приёма для финализатора
             bus.AddEntityFrameworkOutbox<MeteoExportDbContext>(outbox => outbox.UsePostgres());
 
-            bus.UsingRabbitMq((context, rabbit) =>
+            bus.UsingRabbitMq((registrationContext, rabbit) =>
             {
                 rabbit.Host(settings.Rabbit.HostName, (ushort)settings.Rabbit.Port, settings.Rabbit.VirtualHost, settings.Rabbit.ClientName, host =>
                 {
@@ -120,7 +120,7 @@ internal static class Program
                 });
 
                 // очередь потребителя — по его определению
-                rabbit.ConfigureEndpoints(context);
+                rabbit.ConfigureEndpoints(registrationContext);
             });
         });
 

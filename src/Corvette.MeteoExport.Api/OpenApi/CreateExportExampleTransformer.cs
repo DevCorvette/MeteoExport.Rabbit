@@ -16,14 +16,14 @@ public class CreateExportExampleTransformer : IOpenApiOperationTransformer
 
     public Task TransformAsync(
         OpenApiOperation operation,
-        OpenApiOperationTransformerContext context,
+        OpenApiOperationTransformerContext operationContext,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operation);
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(operationContext);
 
-        if (context.Description.RelativePath != RelativePath) return Task.CompletedTask;
-        if (context.Description.HttpMethod != HttpMethod) return Task.CompletedTask;
+        if (operationContext.Description.RelativePath != RelativePath) return Task.CompletedTask;
+        if (operationContext.Description.HttpMethod != HttpMethod) return Task.CompletedTask;
 
         var content = operation.RequestBody?.Content;
         if (content == null || !content.TryGetValue(MediaType, out var mediaType))

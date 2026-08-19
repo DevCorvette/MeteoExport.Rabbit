@@ -14,13 +14,13 @@ public class AllowedVariablesTransformer : IOpenApiSchemaTransformer
 
     public Task TransformAsync(
         OpenApiSchema schema,
-        OpenApiSchemaTransformerContext context,
+        OpenApiSchemaTransformerContext schemaContext,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(schema);
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(schemaContext);
 
-        if (context.JsonTypeInfo.Type != typeof(CreateExportRequest)) return Task.CompletedTask;
+        if (schemaContext.JsonTypeInfo.Type != typeof(CreateExportRequest)) return Task.CompletedTask;
         if (schema.Properties == null || !schema.Properties.TryGetValue(PropertyName, out var variables)) return Task.CompletedTask;
 
         // Перечисление вешаем на элемент массива: ограничен каждый элемент, а не список целиком.

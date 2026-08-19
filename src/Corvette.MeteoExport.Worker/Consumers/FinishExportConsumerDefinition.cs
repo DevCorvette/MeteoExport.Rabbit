@@ -21,7 +21,7 @@ public class FinishExportConsumerDefinition : ConsumerDefinition<FinishExportCon
     protected override void ConfigureConsumer(
         IReceiveEndpointConfigurator endpointConfigurator,
         IConsumerConfigurator<FinishExportConsumer> consumerConfigurator,
-        IRegistrationContext context)
+        IRegistrationContext registrationContext)
     {
         endpointConfigurator.UseMessageRetry(retry =>
         {
@@ -31,7 +31,7 @@ public class FinishExportConsumerDefinition : ConsumerDefinition<FinishExportCon
         });
 
         // Инбокс и аутбокс: статус, событие и отметка об обработке уезжают одной транзакцией.
-        endpointConfigurator.UseEntityFrameworkOutbox<MeteoExportDbContext>(context);
+        endpointConfigurator.UseEntityFrameworkOutbox<MeteoExportDbContext>(registrationContext);
 
         if (endpointConfigurator is IRabbitMqReceiveEndpointConfigurator rabbit)
         {

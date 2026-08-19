@@ -23,41 +23,41 @@ public class ErrorHandlingMiddleware
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext httpContext)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(httpContext);
 
         try
         {
-            await _next(context);
+            await _next(httpContext);
         }
-        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
         {
             // Клиент ушёл — это норма жизни, а не отказ сервиса.
-            _logger.LogWarning($"Клиент оборвал запрос (Method=\"{context.Request.Method}\", Path=\"{context.Request.Path}\")");
-            context.Response.StatusCode = StatusClientClosedRequest;
+            _logger.LogWarning($"Клиент оборвал запрос (Method=\"{httpContext.Request.Method}\", Path=\"{httpContext.Request.Path}\")");
+            httpContext.Response.StatusCode = StatusClientClosedRequest;
         }
         catch (BadHttpRequestException exception)
         {
-            _logger.LogWarning(exception, $"Запрос не разобран (Method=\"{context.Request.Method}\", Path=\"{context.Request.Path}\")");
-            await WriteProblemAsync(context, StatusCodes.Status400BadRequest, "Некорректный запрос", "Запрос не разобран.");
+            _logger.LogWarning(exception, $"Запрос не разобран (Method=\"{httpContext.Request.Method}\", Path=\"{httpContext.Request.Path}\")");
+            await WriteProblemAsync(httpContext, StatusCodes.Status400BadRequest, "Некорректный запрос", "Запрос не разобран.");
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception, $"Необработанная ошибка (Method=\"{context.Request.Method}\", Path=\"{context.Request.Path}\", TraceId=\"{GetTraceId(context)}\")");
-            await WriteProblemAsync(context, StatusCodes.Status500InternalServerError, "Внутренняя ошибка сервиса", "Запрос не обработан. Попробуйте позже.");
+            _logger.LogError(exception, $"Необработанная ошибка (Method=\"{httpContext.Request.Method}\", Path=\"{httpContext.Request.Path}\", TraceId=\"{GetTraceId(httpContext)}\")");
+            await WriteProblemAsync(httpContext, StatusCodes.Status500InternalServerError, "Внутренняя ошибка сервиса", "Запрос не обработан. Попробуйте позже.");
         }
     }
 
     /// <summary>
     /// Отвечает клиенту в том же формате, в котором отвечает на негодный запрос сам ASP.NET Core.
     /// </summary>
-    private async Task WriteProblemAsync(HttpContext context, int statusCode, string title, string detail)
+    private async Task WriteProblemAsync(HttpContext httpContext, int statusCode, string title, string detail)
     {
-        if (context.Response.HasStarted)
+        if (httpContext.Response.HasStarted)
         {
             // Заголовки и часть тела уже у клиента, дописать к ним ответ другого формата нельзя.
-            _logger.LogWarning($"Ответ уже начат, тело ошибки не отправлено (TraceId=\"{GetTraceId(context)}\")");
+            _logger.LogWarning($"Ответ уже начат, тело ошибки не отправлено (TraceId=\"{GetTraceId(httpContext)}\")");
             return;
         }
 
@@ -68,12 +68,12 @@ public class ErrorHandlingMiddleware
             Detail = detail,
         };
 
-        problem.Extensions["traceId"] = GetTraceId(context);
-        context.Response.StatusCode = statusCode;
-        context.Response.ContentType = MediaTypeNames.Application.ProblemJson;
+        problem.Extensions["traceId"] = GetTraceId(httpContext);
+        httpContext.Response.StatusCode = statusCode;
+        httpContext.Response.ContentType = MediaTypeNames.Application.ProblemJson;
 
-        await context.Response.WriteAsJsonAsync(problem);
+        await httpContext.Response.WriteAsJsonAsync(problem);
     }
 
-    private static string GetTraceId(HttpContext context) => Activity.Current?.Id ?? context.TraceIdentifier;
+    private static string GetTraceId(HttpContext httpContext) => Activity.Current?.Id ?? httpContext.TraceIdentifier;
 }

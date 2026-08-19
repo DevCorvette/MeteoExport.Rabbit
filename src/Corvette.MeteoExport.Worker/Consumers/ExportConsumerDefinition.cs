@@ -23,7 +23,7 @@ public class ExportConsumerDefinition : ConsumerDefinition<ExportConsumer>
     protected override void ConfigureConsumer(
         IReceiveEndpointConfigurator endpointConfigurator,
         IConsumerConfigurator<ExportConsumer> consumerConfigurator,
-        IRegistrationContext context)
+        IRegistrationContext registrationContext)
     {
         // Задание занимает воркер целиком.
         endpointConfigurator.PrefetchCount = 1;

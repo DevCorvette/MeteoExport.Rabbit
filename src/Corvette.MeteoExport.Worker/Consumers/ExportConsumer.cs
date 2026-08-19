@@ -16,13 +16,13 @@ public class ExportConsumer : IConsumer<RunExportMessage>
         _runner = runner ?? throw new ArgumentNullException(nameof(runner));
     }
 
-    public async Task Consume(ConsumeContext<RunExportMessage> context)
+    public async Task Consume(ConsumeContext<RunExportMessage> consumeContext)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(consumeContext);
 
-        var jobId = context.Message.JobId;
-        if (jobId == Guid.Empty) throw new ArgumentException("В команде нет идентификатора задания.", nameof(context));
+        var jobId = consumeContext.Message.JobId;
+        if (jobId == Guid.Empty) throw new ArgumentException("В команде нет идентификатора задания.", nameof(consumeContext));
 
-        await _runner.RunAsync(jobId, context.CancellationToken);
+        await _runner.RunAsync(jobId, consumeContext.CancellationToken);
     }
 }

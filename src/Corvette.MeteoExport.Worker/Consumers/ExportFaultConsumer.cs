@@ -21,16 +21,16 @@ public class ExportFaultConsumer : IConsumer<Fault<RunExportMessage>>
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task Consume(ConsumeContext<Fault<RunExportMessage>> context)
+    public async Task Consume(ConsumeContext<Fault<RunExportMessage>> consumeContext)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(consumeContext);
 
-        var jobId = context.Message.Message.JobId;
-        var error = context.Message.Exceptions.FirstOrDefault()?.Message ?? UnknownReason;
+        var jobId = consumeContext.Message.Message.JobId;
+        var error = consumeContext.Message.Exceptions.FirstOrDefault()?.Message ?? UnknownReason;
 
         _logger.LogError($"Повторы исчерпаны, задание провалено (JobId=\"{jobId}\", Error=\"{error}\")");
 
-        var endpoint = await context.GetSendEndpoint(new Uri($"exchange:{EndpointNames.ExportsFinish}"));
-        await endpoint.Send(new FinishExportMessage { JobId = jobId, Error = error }, context.CancellationToken);
+        var endpoint = await consumeContext.GetSendEndpoint(new Uri($"exchange:{EndpointNames.ExportsFinish}"));
+        await endpoint.Send(new FinishExportMessage { JobId = jobId, Error = error }, consumeContext.CancellationToken);
     }
 }

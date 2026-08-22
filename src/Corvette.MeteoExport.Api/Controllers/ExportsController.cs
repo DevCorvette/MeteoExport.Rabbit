@@ -1,5 +1,7 @@
 using System.Net.Mime;
+using Amazon.S3;
 using Corvette.MeteoExport.Api.Models;
+using Corvette.MeteoExport.Api.Settings;
 using Corvette.MeteoExport.Core;
 using MassTransit;
 using Microsoft.AspNetCore.Mvc;
@@ -17,15 +19,21 @@ public class ExportsController : ControllerBase
 {
     private readonly MeteoExportDbContext _context;
     private readonly ISendEndpointProvider _sendEndpointProvider;
+    private readonly AmazonS3Client _storage;
+    private readonly StorageSettings _storageSettings;
     private readonly ILogger<ExportsController> _logger;
 
     public ExportsController(
         MeteoExportDbContext context,
         ISendEndpointProvider sendEndpointProvider,
+        AmazonS3Client storage,
+        StorageSettings storageSettings,
         ILogger<ExportsController> requestLogger)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _sendEndpointProvider = sendEndpointProvider ?? throw new ArgumentNullException(nameof(sendEndpointProvider));
+        _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+        _storageSettings = storageSettings ?? throw new ArgumentNullException(nameof(storageSettings));
         _logger = requestLogger ?? throw new ArgumentNullException(nameof(requestLogger));
     }
 
@@ -69,5 +77,27 @@ public class ExportsController : ControllerBase
             return NotFound();
 
         return status;
+    }
+
+    /// <summary>
+    /// Отдаёт собранный файл выгрузки.
+    /// </summary>
+    [HttpGet("{jobId:guid}/file")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK, MediaTypeNames.Text.Csv)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetFileAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        var file = new ExportFile { JobId = jobId };
+        var state = await file.InitAsync(_context, _storage, _storageSettings, _logger, cancellationToken);
+
+        return state switch
+        {
+            ExportFileState.Ready    => File(file.Content!, MediaTypeNames.Text.Csv, file.FileName),
+            ExportFileState.NotReady => Problem($"Файла у задания нет (Status=\"{file.JobStatus}\").", statusCode: StatusCodes.Status409Conflict),
+            ExportFileState.NotFound => NotFound(),
+            _                        => throw new ArgumentOutOfRangeException(nameof(state), state, "Неизвестное состояние файла задания."),
+        };
     }
 }

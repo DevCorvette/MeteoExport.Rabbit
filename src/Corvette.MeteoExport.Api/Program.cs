@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using Amazon.Runtime;
+using Amazon.S3;
 using Corvette.MeteoExport.Api.Middleware;
 using Corvette.MeteoExport.Api.OpenApi;
 using Corvette.MeteoExport.Api.Settings;
@@ -83,6 +85,16 @@ internal static class Program
         // Вложенные секции кладём в контейнер отдельно, чтобы сервисы просили ровно то, что им нужно.
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(settings.Rabbit);
+        builder.Services.AddSingleton(settings.Storage);
+
+        // Клиент хранилища держит соединения, поэтому он один на приложение.
+        builder.Services.AddSingleton(_ => new AmazonS3Client(
+            new BasicAWSCredentials(settings.Storage.AccessKey, settings.Storage.SecretKey),
+            new AmazonS3Config
+            {
+                ServiceURL = settings.Storage.Endpoint,
+                ForcePathStyle = true,
+            }));
 
         // Контекст на запрос ради MassTransit.Outbox
         builder.Services.AddDbContext<MeteoExportDbContext>(options => MeteoExportDbContextFactory.Configure(options, settings.ConnectionString));

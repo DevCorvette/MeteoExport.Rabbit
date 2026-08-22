@@ -15,11 +15,18 @@ public class ApiSettings
     /// </summary>
     public required RabbitSettings Rabbit { get; init; }
 
+    /// <summary>
+    /// Параметры объектного хранилища.
+    /// </summary>
+    public required StorageSettings Storage { get; init; }
+
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(ConnectionString)) throw new InvalidOperationException("Не задана строка подключения к базе (ConnectionString).");
         if (Rabbit == null) throw new InvalidOperationException("В конфигурации нет секции 'Rabbit'.");
+        if (Storage == null) throw new InvalidOperationException("В конфигурации нет секции 'Storage'.");
 
         Rabbit.Validate();
+        Storage.Validate();
     }
 }

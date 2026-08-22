@@ -45,6 +45,11 @@ public class ExportStatusResponse
     /// </summary>
     public string? Error { get; }
 
+    /// <summary>
+    /// Ссылка на готовый файл; пока задание не завершилось успехом, её нет.
+    /// </summary>
+    public string? FileUrl { get; }
+
     public ExportStatusResponse(ExportJobEntity job)
     {
         ArgumentNullException.ThrowIfNull(job);
@@ -56,6 +61,9 @@ public class ExportStatusResponse
         FinishedAt = job.FinishedAt;
         Progress = new ExportProgress(job.ChunksDone, job.ChunksTotal);
         Error = job.Error;
+
+        // Ссылка своя, а не в хранилище: клиенту незачем знать ни адрес хранилища, ни ключ объекта.
+        FileUrl = job.Status == ExportStatus.Completed ? $"/exports/{job.Id}/file" : null;
     }
 
     /// <summary>

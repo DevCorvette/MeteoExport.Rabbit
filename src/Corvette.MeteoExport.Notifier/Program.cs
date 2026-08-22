@@ -82,6 +82,7 @@ internal static class Program
 
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(settings.Rabbit);
+        builder.Services.AddSingleton(settings.Email);
 
         builder.Services.AddSingleton<EmailSender>();
         builder.Services.AddSingleton<WebhookSender>();

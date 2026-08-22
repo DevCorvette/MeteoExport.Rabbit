@@ -32,6 +32,9 @@ public class WebhookNotificationConsumer : IConsumer<ExportFinishedMessage>
             return;
         }
 
-        await _sender.SendAsync(message, consumeContext.CancellationToken);
+        // Идентификатор доставки должен пережить повтор, поэтому берём его из сообщения.
+        var deliveryId = consumeContext.MessageId ?? throw new ArgumentException("В событии нет идентификатора сообщения.", nameof(consumeContext));
+
+        await _sender.SendAsync(message, deliveryId, consumeContext.CancellationToken);
     }
 }

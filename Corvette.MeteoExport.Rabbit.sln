@@ -14,6 +14,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Corvette.MeteoExport.Contra
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Corvette.MeteoExport.Notifier", "src\Corvette.MeteoExport.Notifier\Corvette.MeteoExport.Notifier.csproj", "{11ED31B1-A0FD-4D4D-A9A0-710ABAEB2B94}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Corvette.MeteoExport.Api.Tests", "tests\Corvette.MeteoExport.Api.Tests\Corvette.MeteoExport.Api.Tests.csproj", "{C4712F61-271F-47C2-8790-EC68B6E202B0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -96,6 +100,18 @@ Global
 		{11ED31B1-A0FD-4D4D-A9A0-710ABAEB2B94}.Release|x64.Build.0 = Release|Any CPU
 		{11ED31B1-A0FD-4D4D-A9A0-710ABAEB2B94}.Release|x86.ActiveCfg = Release|Any CPU
 		{11ED31B1-A0FD-4D4D-A9A0-710ABAEB2B94}.Release|x86.Build.0 = Release|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Debug|x64.Build.0 = Debug|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Debug|x86.Build.0 = Debug|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Release|x64.ActiveCfg = Release|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Release|x64.Build.0 = Release|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Release|x86.ActiveCfg = Release|Any CPU
+		{C4712F61-271F-47C2-8790-EC68B6E202B0}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -107,5 +123,6 @@ Global
 		{012740E7-51DC-4B7F-863B-626F19CD38EC} = {EB77C0E8-3047-47E5-845F-96191E3EF6FD}
 		{12BE3DB2-4FE1-4C85-88B2-2381F4FB36C4} = {EB77C0E8-3047-47E5-845F-96191E3EF6FD}
 		{11ED31B1-A0FD-4D4D-A9A0-710ABAEB2B94} = {EB77C0E8-3047-47E5-845F-96191E3EF6FD}
+		{C4712F61-271F-47C2-8790-EC68B6E202B0} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
